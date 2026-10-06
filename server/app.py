@@ -15,6 +15,7 @@ import datetime as dt
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -41,6 +42,7 @@ SPEAKER_GAP = 0.8          # >= bu süre boşluk → yeni konuşma turu
 MAX_LLM_INPUT = 14_000     # transkriptten modele gidecek üst sınır (yaklaşık)
 
 HOSTS = {f"localhost:{STUDIO_PORT}", f"127.0.0.1:{STUDIO_PORT}"}
+RID_PATTERN = re.compile(r"[0-9a-f]{12}")
 
 job_lock = threading.Lock()
 job_queue: list[str] = []
@@ -54,6 +56,10 @@ def now_iso() -> str:
 
 
 def rec_dir(rid: str) -> Path:
+    # Kimlik yalnız create()'in ürettiği 12 hanelik hex olabilir; ".." gibi
+    # değerler library/ dışına çıkıp kök klasörü silebilirdi.
+    if not RID_PATTERN.fullmatch(rid):
+        raise HTTPException(404, "Kayıt bulunamadı.")
     return LIBRARY / rid
 
 

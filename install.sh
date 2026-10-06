@@ -203,7 +203,7 @@ fetch_speech_models() {
   say "Downloading speech models (SHA-256 verified)"
   [ -f "$INDEX_JSON" ] || die "model index missing: $INDEX_JSON"
   local cache="$ROOT/model-cache/nemo-speech/models"
-  local name spec repo rev file sha size target url
+  local name spec repo rev file sha size target url got
   for name in "$ASR_MODEL" "$DIAR_MODEL"; do
     spec="$(model_artifact "$name")"
     [ -n "$spec" ] || die "unknown model: $name (see $INDEX_JSON)"
@@ -217,8 +217,13 @@ fetch_speech_models() {
     url="https://huggingface.co/${repo}/resolve/${rev}/${file}?download=true"
     ok "downloading $file ($((size / 1024 / 1024)) MB)"
     curl -L --fail --retry 3 -sS -o "$target.part" "$url"
+    got="$(sha256sum "$target.part" | cut -d' ' -f1)"
+    if [ "$got" != "$sha" ]; then
+      rm -f "$target.part"
+      die "checksum mismatch for $file: expected $sha, got $got (download discarded; rerun install.sh)"
+    fi
     mv "$target.part" "$target"
-    echo "   sha256: $(sha256sum "$target" | cut -d' ' -f1)"
+    ok "sha256 verified: $got"
   done
 }
 
