@@ -14,21 +14,26 @@
     <div class="wordmark">
       <span class="wordmark-a">Speech</span><span class="wordmark-b">Studio</span>
     </div>
-    <div class="top-status" id="statusline">ses kaydı → konuşmacı ayrımı, transkript, özet</div>
-    <!-- auth kaldirildi -->
+    <div class="top-status" id="statusline" data-i18n="tagline">ses kaydı → konuşmacı ayrımı, transkript, özet</div>
+    <div class="top-right">
+      <div class="lang-switch" role="group" aria-label="Dil / Language">
+        <button type="button" data-lang="tr">TR</button>
+        <button type="button" data-lang="en">EN</button>
+      </div>
+    </div>
   </header>
 
   <aside class="rail-left">
     <div class="rail-head">
-      <h2>Kayıtlar</h2>
-      <button class="btn-accent" id="pick">Yükle</button>
+      <h2 data-i18n="recordings">Kayıtlar</h2>
+      <button class="btn-accent" id="pick" data-i18n="upload">Yükle</button>
     </div>
 
     <div class="drop" id="drop">
       <input type="file" id="file" accept=".wav,.mp3,.flac,.ogg,.opus,.m4a" hidden>
       <div class="drop-body">
-        <b>Dosyayı buraya bırakın</b>
-        <span class="drop-sub">veya “Yükle”ye basın · wav · mp3 · flac · m4a</span>
+        <b data-i18n="dropTitle">Dosyayı buraya bırakın</b>
+        <span class="drop-sub" data-i18n="dropSub">veya “Yükle”ye basın · wav · mp3 · flac · m4a</span>
         <div class="upload-progress" id="upload-progress" hidden>
           <div class="upload-progress-bar" id="upload-progress-bar"></div>
           <div class="upload-progress-text" id="upload-progress-text"></div>
@@ -37,17 +42,17 @@
     </div>
 
     <ul class="reclist" id="list"></ul>
-    <p class="empty-small" id="list-empty">Henüz kayıt yok.</p>
+    <p class="empty-small" id="list-empty" data-i18n="noRecordings">Henüz kayıt yok.</p>
   </aside>
 
   <main class="stage">
     <header class="stage-head">
       <div>
-        <h1 id="rec-title">Bir kayıt seçin</h1>
+        <h1 id="rec-title" data-i18n="pickRecording">Bir kayıt seçin</h1>
         <div class="stage-meta">
           <span class="tag" id="rec-meta">—</span>
-          <a class="link-quiet" id="export-link" href="#" target="_blank">dışa aktar</a>
-          <button class="link-quiet danger" id="delete">sil</button>
+          <a class="link-quiet" id="export-link" href="#" target="_blank" data-i18n="export">dışa aktar</a>
+          <button class="link-quiet danger" id="delete" data-i18n="delete">sil</button>
         </div>
       </div>
     </header>
@@ -62,11 +67,11 @@
 
     <section class="doc">
       <div class="doc-head">
-        <h2>Konuşma dökümü</h2>
-        <span class="doc-hint">zaman damgasına bas → oynatıcı o ana atlar</span>
+        <h2 data-i18n="transcript">Konuşma dökümü</h2>
+        <span class="doc-hint" data-i18n="transcriptHint">zaman damgasına bas → oynatıcı o ana atlar</span>
       </div>
       <div class="turns" id="turns">
-        <div class="empty">Kayıt işlendiğinde konuşma turları burada belirir.</div>
+        <div class="empty" data-i18n="turnsEmpty">Kayıt işlendiğinde konuşma turları burada belirir.</div>
       </div>
     </section>
   </main>
@@ -74,28 +79,28 @@
   <aside class="rail-right">
     <section class="panel panel-ozet">
       <div class="panel-head">
-        <h2>Özet</h2>
-        <button class="btn-ghost" id="summarize">Özet üret</button>
+        <h2 data-i18n="summary">Özet</h2>
+        <button class="btn-ghost" id="summarize" data-i18n="summarize">Özet üret</button>
       </div>
       <div class="summary-body" id="summary">
-        <div class="empty">Kayıt işlendiğinde özet üretilebilir.</div>
+        <div class="empty" data-i18n="summaryEmpty">Kayıt işlendiğinde özet üretilebilir.</div>
       </div>
     </section>
 
     <section class="panel panel-soru">
       <div class="panel-head">
-        <h2>Kayda sor</h2>
+        <h2 data-i18n="ask">Kayda sor</h2>
       </div>
       <div class="qa-thread" id="qa-thread"></div>
       <form class="ask-row" id="ask-form">
-        <input id="question" placeholder="Örn: Ana karar neydi?" autocomplete="off">
-        <button type="submit" id="ask" class="btn-accent">Sor</button>
+        <input id="question" placeholder="Örn: Ana karar neydi?" data-i18n-placeholder="askPlaceholder" autocomplete="off">
+        <button type="submit" id="ask" class="btn-accent" data-i18n="askButton">Sor</button>
       </form>
-      <p class="answer-note">Yanıtlar yalnızca bu kaydın içeriğinden üretilir; kaynak zamanları gösterilir.</p>
+      <p class="answer-note" data-i18n="answerNote">Yanıtlar yalnızca bu kaydın içeriğinden üretilir; kaynak zamanları gösterilir.</p>
     </section>
   </aside>
 
 </div>
-<script src="/static/app.js?v=fix1"></script>
+<script src="/static/app.js?v=i18n1"></script>
 </body>
 </html>

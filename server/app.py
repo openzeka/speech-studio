@@ -43,6 +43,11 @@ MAX_LLM_INPUT = 14_000     # transkriptten modele gidecek üst sınır (yaklaş�
 
 HOSTS = {f"localhost:{STUDIO_PORT}", f"127.0.0.1:{STUDIO_PORT}"}
 RID_PATTERN = re.compile(r"[0-9a-f]{12}")
+LANGS = ("tr", "en")
+
+
+def pick_lang(value) -> str:
+    return value if value in LANGS else "tr"
 
 job_lock = threading.Lock()
 job_queue: list[str] = []
@@ -70,8 +75,14 @@ def load_json(path: Path, fallback):
         return fallback
 
 
-def store(rid: str) -> dict:
+def summary_path(d: Path, lang: str) -> Path:
+    # Türkçe özet eski kayıtlarla uyum için summary.md'de kalır.
+    return d / ("summary.md" if lang == "tr" else f"summary.{lang}.md")
+
+
+def store(rid: str, lang: str = "tr") -> dict:
     d = rec_dir(rid)
+    summary_file = summary_path(d, lang)
     meta = load_json(d / "meta.json", None)
     if meta is None:
         raise HTTPException(404, "Kayıt bulunamadı.")
@@ -80,8 +91,10 @@ def store(rid: str) -> dict:
         "job": load_json(d / "job.json", {"state": "unknown"}),
         "result": load_json(d / "result.json", None),
         "speakers": load_json(d / "speakers.json", {}),
-        "summary": (d / "summary.md").read_text() if (d / "summary.md").exists() else "",
-        "questions": load_json(d / "questions.json", []),
+        "summary": summary_file.read_text() if summary_file.exists() else "",
+        # Soru geçmişi dile göre süzülür; dil alanı olmayan eski kayıtlar Türkçe.
+        "questions": [q for q in load_json(d / "questions.json", [])
+                      if q.get("lang", "tr") == lang],
     }
 
 
@@ -185,7 +198,8 @@ def llm_chat(messages: list[dict], num_predict: int = 700) -> str:
         "messages": messages,
         "stream": False,
         "keep_alive": "5m",
-        "options": {"temperature": 0.2, "num_ctx": 4096, "num_predict": num_predict},
+        "options": {"temperature": 0.2, "repeat_penalty": 1.1,
+                    "num_ctx": 8192, "num_predict": num_predict},
     }
     request = urllib.request.Request(
         OLLAMA_URL + "/api/chat",
@@ -204,37 +218,60 @@ def llm_chat(messages: list[dict], num_predict: int = 700) -> str:
     return content
 
 
-def transcript_context(turns: list[dict]) -> str:
-    lines = [f"[{mmss(t['start'])}] Konuşmacı {t['speaker']}: {t['text']}" for t in turns]
+def transcript_context(turns: list[dict], lang: str = "tr") -> str:
+    label = SPEAKER_LABEL[lang]
+    lines = [f"[{mmss(t['start'])}] {label} {t['speaker']}: {t['text']}" for t in turns]
     text = "\n".join(lines)
     return text[:MAX_LLM_INPUT]
 
 
-SUMMARY_SYSTEM = (
-    "Sen ses kaydı özetleyicisisin. Yalnızca verilen transkript parçalarına "
-    "dayan; olmayan bilgi, karar veya isim uydurma. Türkçe yanıt ver. Yanıtı "
-    "üç başlıkla düzenla: Kısa özet (iki cümle), Önemli noktalar (madde "
-    "işaretleri), Kararlar ve eylemler (yoksa sadece '—' yaz). Başlıkları "
-    "yalnız birer kez yaz.")
+SPEAKER_LABEL = {"tr": "Konuşmacı", "en": "Speaker"}
+PROMPT_WORDS = {"tr": ("Transkript", "Soru"), "en": ("Transcript", "Question")}
+# Küçük modeller transkriptin dilini izleme eğiliminde; dil talimatı mesajın
+# sonunda tekrarlanınca seçilen dile daha güvenilir uyuyorlar.
+ANSWER_IN = {"tr": "Yanıtı yalnızca Türkçe yaz.", "en": "Write the answer in English only."}
 
-QA_SYSTEM = (
-    "Sen ses kaydı asistanısın. Yalnızca verilen transkript parçalarına dayan; "
-    "emin değilsen 'Bu kayıtta geçmiyor' de. Türkçe yanıt ver ve dayandığın "
-    "zaman damgalarını [mm:ss] şeklinde göster.")
+SUMMARY_SYSTEM = {
+    "tr": (
+        "Sen ses kaydı özetleyicisisin. Yalnızca verilen transkript parçalarına "
+        "dayan; olmayan bilgi, karar veya isim uydurma. Türkçe yanıt ver. Yanıtı "
+        "üç başlıkla düzenle: Kısa özet (iki cümle), Önemli noktalar (madde "
+        "işaretleri), Kararlar ve eylemler (yoksa sadece '—' yaz). Başlıkları "
+        "yalnız birer kez yaz."),
+    "en": (
+        "You summarize audio recordings. Rely only on the given transcript; do "
+        "not invent facts, decisions or names. Answer in English. Use three "
+        "headings: Recap (two sentences), Key points (bullet list), Decisions "
+        "and actions (write only '—' if there are none). Write each heading "
+        "once."),
+}
+
+QA_SYSTEM = {
+    "tr": (
+        "Sen ses kaydı asistanısın. Yalnızca verilen transkript parçalarına dayan; "
+        "emin değilsen 'Bu kayıtta geçmiyor' de. Türkçe yanıt ver ve dayandığın "
+        "zaman damgalarını [mm:ss] şeklinde göster."),
+    "en": (
+        "You answer questions about an audio recording. Rely only on the given "
+        "transcript; if unsure, say 'This is not in the recording'. Answer in "
+        "English and cite the timestamps you used as [mm:ss]."),
+}
 
 
-async def make_summary(rid: str) -> str:
+async def make_summary(rid: str, lang: str = "tr") -> str:
     d = rec_dir(rid)
-    existing = d / "summary.md"
+    existing = summary_path(d, lang)
     if existing.exists():
         return existing.read_text()
     result = load_json(d / "result.json", None)
     if not result or not result.get("turns"):
         raise HTTPException(409, "Önce dijarizasyon/transkript tamamlanmalı.")
     summary = await asyncio.to_thread(llm_chat, [
-        {"role": "system", "content": SUMMARY_SYSTEM},
-        {"role": "user", "content": "Transkript:\n\n" + transcript_context(result["turns"])},
-    ])
+        {"role": "system", "content": SUMMARY_SYSTEM[lang]},
+        {"role": "user", "content":
+            PROMPT_WORDS[lang][0] + ":\n\n" + transcript_context(result["turns"], lang) +
+            "\n\n" + ANSWER_IN[lang]},
+    ], num_predict=1200)
     existing.write_text(summary)
     return summary
 
@@ -385,8 +422,8 @@ async def create(request: Request, file: UploadFile = File(...)):
 
 
 @app.get("/api/recordings/{rid}")
-async def detail(request: Request, rid: str):
-    return store(rid)
+async def detail(request: Request, rid: str, lang: str = "tr"):
+    return store(rid, pick_lang(lang))
 
 
 @app.get("/api/recordings/{rid}/audio")
@@ -426,8 +463,8 @@ async def peaks(request: Request, rid: str):
 
 
 @app.post("/api/recordings/{rid}/summary")
-async def summary(request: Request, rid: str):
-    text = await make_summary(rid)
+async def summary(request: Request, rid: str, lang: str = "tr"):
+    text = await make_summary(rid, pick_lang(lang))
     return {"summary": text}
 
 
@@ -435,19 +472,20 @@ async def summary(request: Request, rid: str):
 async def ask(request: Request, rid: str):
     body = await request.json()
     question = (body.get("question") or "").strip()
+    lang = pick_lang(body.get("lang"))
     if not question:
         raise HTTPException(400, "Soru gerekli.")
     result = load_json(rec_dir(rid) / "result.json", None)
     if not result or not result.get("turns"):
         raise HTTPException(409, "Kayıt henüz işlenmedi.")
     answer = await asyncio.to_thread(llm_chat, [
-        {"role": "system", "content": QA_SYSTEM},
+        {"role": "system", "content": QA_SYSTEM[lang]},
         {"role": "user", "content":
-            "Transkript:\n\n" + transcript_context(result["turns"]) +
-            "\n\nSoru: " + question},
+            PROMPT_WORDS[lang][0] + ":\n\n" + transcript_context(result["turns"], lang) +
+            "\n\n" + PROMPT_WORDS[lang][1] + ": " + question + "\n\n" + ANSWER_IN[lang]},
     ])
     history = load_json(rec_dir(rid) / "questions.json", [])
-    history.append({"question": question, "answer": answer, "at": now_iso()})
+    history.append({"question": question, "answer": answer, "lang": lang, "at": now_iso()})
     (rec_dir(rid) / "questions.json").write_text(json.dumps(history, ensure_ascii=False))
     return {"answer": answer, "question": question}
 
@@ -492,15 +530,16 @@ async def delete(request: Request, rid: str):
 
 
 @app.get("/api/export/{rid}.md")
-async def export(request: Request, rid: str):
-    item = store(rid)
+async def export(request: Request, rid: str, lang: str = "tr"):
+    lang = pick_lang(lang)
+    item = store(rid, lang)
     names = item["speakers"]
     lines = [f"# {item['meta'].get('title', rid)}", ""]
     if item["summary"]:
         lines += [item["summary"], ""]
-    lines += ["## Konuşma dökümü", ""]
-    for turn in item["result"].get("turns", []):
-        label = names.get(str(turn["speaker"]), f"Konuşmacı {turn['speaker']}")
+    lines += ["## " + ("Konuşma dökümü" if lang == "tr" else "Transcript"), ""]
+    for turn in (item["result"] or {}).get("turns", []):
+        label = names.get(str(turn["speaker"]), f"{SPEAKER_LABEL[lang]} {turn['speaker']}")
         lines.append(f"- [{mmss(turn['start'])}] **{label}:** {turn['text']}")
     return PlainTextResponse("\n".join(lines) + "\n", media_type="text/markdown; charset=utf-8")
 

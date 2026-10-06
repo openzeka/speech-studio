@@ -6,7 +6,7 @@
 
 English · [Türkçe](README.tr.md)
 
-![Speech Studio console with a recording open](docs/images/1-konsol-ekrani.webp)
+![Speech Studio console with a recording open](docs/images/1-konsol-ekrani-en.webp)
 
 </div>
 
@@ -23,9 +23,10 @@ recording**. Everything runs on the device: the audio never leaves your Jetson.
 - **Summary:** a short recap, key points, and decisions/action items.
 - **Ask the recording:** answers are grounded in the transcript and cite `[mm:ss]` timestamps you can check.
 - **Markdown export:** summary plus transcript in one file.
+- **Turkish / English:** switch the interface with the TR · EN toggle; summaries and answers are generated in the selected language.
 - **Formats:** WAV, MP3, FLAC, OGG, Opus, M4A (up to 500 MB).
 
-![Transcript, summary and Q&A panels](docs/images/2-konusma-detay.webp)
+![Transcript, summary and Q&A panels](docs/images/2-konusma-detay-en.webp)
 
 ## How it works
 
@@ -64,7 +65,7 @@ The installer:
 1. checks the prerequisites,
 2. clones NeMo-Speech.cpp into `vendor/` and applies the Jetson build fixes,
 3. builds the `speech-nemo:local` image (the first build takes a while),
-4. downloads the ASR and diarization models you pick into `model-cache/`,
+4. downloads the ASR and diarization models you pick into `model-cache/` and verifies each against its pinned SHA-256,
 5. pulls the LLM you pick into your Ollama container,
 6. installs the web console as a systemd user service.
 

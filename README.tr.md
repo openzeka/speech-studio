@@ -6,7 +6,7 @@
 
 [English](README.md) · Türkçe
 
-![Speech Studio — kayıt açıkken](docs/images/1-konsol-ekrani.webp)
+![Speech Studio — kayıt açıkken](docs/images/1-konsol-ekrani-tr.webp)
 
 </div>
 
@@ -23,9 +23,10 @@ Her şey cihazda çalışır; ses dosyası Jetson'dan dışarı çıkmaz.
 - **Özet:** Kısa özet, önemli noktalar, kararlar ve yapılacaklar.
 - **Kayda sor:** Yanıtlar yalnızca dökümden üretilir ve kontrol edebileceğiniz `[mm:ss]` zaman damgalarını gösterir.
 - **Markdown dışa aktarma:** Özet ve döküm tek dosyada.
+- **Türkçe / İngilizce:** Arayüz TR · EN düğmesiyle değişir; özet ve yanıtlar seçilen dilde üretilir.
 - **Biçimler:** WAV, MP3, FLAC, OGG, Opus, M4A (500 MB'a kadar).
 
-![Konuşma dökümü, özet ve soru-cevap panelleri](docs/images/2-konusma-detay.webp)
+![Konuşma dökümü, özet ve soru-cevap panelleri](docs/images/2-konusma-detay-tr.webp)
 
 ## Nasıl çalışır?
 
@@ -64,7 +65,7 @@ Kurulum betiği:
 1. ön koşulları denetler,
 2. NeMo-Speech.cpp'yi `vendor/` altına klonlar ve Jetson derleme düzeltmelerini uygular,
 3. `speech-nemo:local` imajını derler (ilk derleme biraz sürer),
-4. seçtiğiniz ASR ve konuşmacı ayrımı modellerini `model-cache/` altına indirir,
+4. seçtiğiniz ASR ve konuşmacı ayrımı modellerini `model-cache/` altına indirir ve her birini sabitlenmiş SHA-256 değeriyle doğrular,
 5. seçtiğiniz dil modelini Ollama konteynerinize çeker,
 6. web arayüzünü systemd kullanıcı servisi olarak kurar.
 
