@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Speech Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="shell">
+
+  <header class="topbar">
+    <div class="wordmark">
+      <span class="wordmark-a">Speech</span><span class="wordmark-b">Studio</span>
+    </div>
+    <div class="top-status" id="statusline">ses kaydı → konuşmacı ayrımı, transkript, özet</div>
+    <!-- auth kaldirildi -->
+  </header>
+
+  <aside class="rail-left">
+    <div class="rail-head">
+      <h2>Kayıtlar</h2>
+      <button class="btn-accent" id="pick">Yükle</button>
+    </div>
+
+    <div class="drop" id="drop">
+      <input type="file" id="file" accept=".wav,.mp3,.flac,.ogg,.opus,.m4a" hidden>
+      <div class="drop-body">
+        <b>Dosyayı buraya bırakın</b>
+        <span class="drop-sub">veya “Yükle”ye basın · wav · mp3 · flac · m4a</span>
+        <div class="upload-progress" id="upload-progress" hidden>
+          <div class="upload-progress-bar" id="upload-progress-bar"></div>
+          <div class="upload-progress-text" id="upload-progress-text"></div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="reclist" id="list"></ul>
+    <p class="empty-small" id="list-empty">Henüz kayıt yok.</p>
+  </aside>
+
+  <main class="stage">
+    <header class="stage-head">
+      <div>
+        <h1 id="rec-title">Bir kayıt seçin</h1>
+        <div class="stage-meta">
+          <span class="tag" id="rec-meta">—</span>
+          <a class="link-quiet" id="export-link" href="#" target="_blank">dışa aktar</a>
+          <button class="link-quiet danger" id="delete">sil</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="timeline-panel">
+      <canvas id="wave" height="200"></canvas>
+      <div class="transport">
+        <audio id="audio" controls preload="metadata"></audio>
+      </div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="doc">
+      <div class="doc-head">
+        <h2>Konuşma dökümü</h2>
+        <span class="doc-hint">zaman damgasına bas → oynatıcı o ana atlar</span>
+      </div>
+      <div class="turns" id="turns">
+        <div class="empty">Kayıt işlendiğinde konuşma turları burada belirir.</div>
+      </div>
+    </section>
+  </main>
+
+  <aside class="rail-right">
+    <section class="panel panel-ozet">
+      <div class="panel-head">
+        <h2>Özet</h2>
+        <button class="btn-ghost" id="summarize">Özet üret</button>
+      </div>
+      <div class="summary-body" id="summary">
+        <div class="empty">Kayıt işlendiğinde özet üretilebilir.</div>
+      </div>
+    </section>
+
+    <section class="panel panel-soru">
+      <div class="panel-head">
+        <h2>Kayda sor</h2>
+      </div>
+      <div class="qa-thread" id="qa-thread"></div>
+      <form class="ask-row" id="ask-form">
+        <input id="question" placeholder="Örn: Ana karar neydi?" autocomplete="off">
+        <button type="submit" id="ask" class="btn-accent">Sor</button>
+      </form>
+      <p class="answer-note">Yanıtlar yalnızca bu kaydın içeriğinden üretilir; kaynak zamanları gösterilir.</p>
+    </section>
+  </aside>
+
+</div>
+<script src="/static/app.js?v=fix1"></script>
+</body>
+</html>

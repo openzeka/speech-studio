@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Downloaded models (install.sh fetches them)
+model-cache/
+*.part
+
+# Upstream NeMo-Speech.cpp clone (install.sh clones it)
+vendor/
+
+# User recordings, transcripts, summaries, UI token
+library/
+
+# Local build logs, test audio, screenshots
+build/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
