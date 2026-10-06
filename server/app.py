@@ -349,10 +349,10 @@ async def static_file(name: str):
     path = Path(__file__).parent / "static" / name
     if not path.is_file() or "/" in name:
         raise HTTPException(404)
-    media = {"app.js": "text/javascript", "style.css": "text/css",
-             "favicon.svg": "image/svg+xml"}.get(
-        name, "application/octet-stream")
-    response = FileResponse(path, media_type=media + "; charset=utf-8")
+    media = {".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+             ".svg": "image/svg+xml", ".png": "image/png"}.get(
+        path.suffix, "application/octet-stream")
+    response = FileResponse(path, media_type=media)
     response.headers["Cache-Control"] = "no-store"
     return response
 

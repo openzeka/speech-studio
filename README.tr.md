@@ -1,8 +1,12 @@
 <div align="center">
 
+<img src="server/static/openzeka-logo.png" alt="OpenZeka" height="48">
+
 # Speech Studio
 
 **NVIDIA Jetson üzerinde ses kayıtları için yerel döküm, konuşmacı ayrımı, özet ve soru-cevap.**
+
+Konuşmacı ayrımı: **[NVIDIA Nemotron-3-Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization)**
 
 [English](README.md) · Türkçe
 
@@ -28,6 +32,57 @@ Her şey cihazda çalışır; ses dosyası Jetson'dan dışarı çıkmaz.
 
 ![Konuşma dökümü, özet ve soru-cevap panelleri](docs/images/2-konusma-detay-tr.webp)
 
+## NVIDIA Nemotron-3-Diarization ile
+
+Speech Studio'nun merkezinde NVIDIA'nın konuşmacı ayrımı modeli
+[**Nemotron-3-Diarization**](https://huggingface.co/nvidia/Nemotron-3-Diarization)
+var. [Konuşmacı ayrımı (speaker diarization)](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/speaker_diarization/intro.html),
+tanıdık konuşma modellerinden farklı bir soruyu yanıtlar:
+
+| Model türü | Girdi → çıktı | Yanıtladığı soru |
+|---|---|---|
+| Konuşma tanıma (ASR) | ses → metin | "Ne söylendi?" |
+| Metinden sese (TTS) | metin → ses | "Bu metin nasıl seslendirilir?" |
+| **Konuşmacı ayrımı** | ses → konuşmacı zaman çizelgesi | **"Kim, ne zaman konuştu?"** |
+
+Yalnızca ASR kullanıldığında elinizde kimin ne söylediği belli olmayan tek
+parça bir metin kalır. Konuşmacı ayrımı, isimleri ya da kelimelerin anlamını
+bilmeden *sesleri* birbirinden ayırır ve bu metni, her cümlenin bir sahibi
+olduğu bir sohbete dönüştürür.
+
+**Nasıl çalışır?** Klasik sistemler işi ayrı adımlarla yapar: konuşmayı bul,
+her bölümden ses izi çıkar, izleri kümele. Hatalar adımdan adıma birikir;
+üst üste binen konuşmalar da bu yapıya pek uymaz. Nemotron-3-Diarization,
+NVIDIA'nın **Sortformer** ailesinden, işi tek seferde yapan uçtan uca bir
+modeldir: her kısa zaman dilimi için sekiz konuşmacıya kadar her birinin o
+anda konuşma olasılığını verir. Aynı anda birden fazla konuşmacı etkin
+olabildiği için söz kesmeler ve üst üste konuşmalar da doğal olarak yakalanır.
+Speech Studio'nun zaman çizelgesindeki renkli şeritler, bu sekiz çıktının
+görünür hâlidir.
+
+| | |
+|---|---|
+| Boyut | ~100M parametre: 8 GB'lık Orin Nano'yu ASR ve bir dil modeliyle paylaşacak kadar küçük |
+| Mimari | 31 katmanlı Transformer kodlayıcı (RoPE), Sortformer çıkışı |
+| Konuşmacı | en fazla 8, üst üste konuşma destekli |
+| Çalışma modu | dosyanın tamamı (offline) ve canlı akış; gecikme 0,32 sn'ye kadar |
+| Eğitim verisi | ~10.000 saat gerçek konuşma + 82.611 saat yapay çok konuşmacılı karışım, birçok dil |
+| Lisans | OpenMDW 1.1 (ticari kullanıma izin verir) |
+
+NVIDIA'nın yayımladığı konuşmacı ayrımı hata oranları (DER, dosyanın tamamı modu, düşük değer daha iyi):
+
+| Veri kümesi | İçerik | DER |
+|---|---|---|
+| NOTSOFAR1 | toplantılar | %6,77 |
+| CALLHOME (Part 2) | telefon görüşmeleri | %9,10 |
+| DIHARD III | zorlu, karışık alanlardan sesler | %12,73 (0,32 sn akış gecikmesinde %13,55) |
+
+**Speech Studio'da** ASR her kelimeyi zaman damgasıyla yazar, Nemotron-3-Diarization
+da o anda kimin konuştuğunu etiketler. İkisi de Jetson GPU'sunda
+[NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp) içinde çalışır.
+Speech Studio etiketli kelimeleri konuşma turlarında birleştirir; zaman
+çizelgesi, döküm, özet ve soru-cevap bu turların üzerine kurulur.
+
 ## Nasıl çalışır?
 
 ```
@@ -40,7 +95,7 @@ ses kaydı ──► [NeMo-Speech.cpp konteyneri, GPU] ──► konuşmacılar 
 | Bileşen | Görevi |
 |---|---|
 | [NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp) | NVIDIA'nın ggml tabanlı yerel çıkarım motoru; Docker imajı olarak derlenir. ASR ve konuşmacı ayrımını Jetson GPU'sunda, her iş için ayrı konteynerde çalıştırır. |
-| [Nemotron-3-Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization) | Kimin ne zaman konuştuğunu bulur; 8 konuşmacıya kadar, kelime düzeyinde etiketler. |
+| [Nemotron-3-Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization) | Kimin ne zaman konuştuğunu bulur; 8 konuşmacıya kadar, kelime düzeyinde etiketler ([ayrıntılar yukarıda](#nvidia-nemotron-3-diarization-ile)). |
 | ASR modelleri | `nemotron-3.5` (varsayılan, çok dilli), `parakeet-tdt`, `parakeet-ctc`, `nemotron-en`. |
 | [Ollama](https://ollama.com) | Seçtiğiniz modelle özet ve soru-cevap (varsayılan `qwen2.5:3b`). Speech Studio mevcut konteynerinizi yalnızca kullanır; durdurmaz, modelleri silmez. |
 | Web arayüzü | Python/FastAPI + sade JS, yalnızca `127.0.0.1`'e bağlanır. Başka bir bilgisayardan SSH tüneliyle erişilir. |

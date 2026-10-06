@@ -1,8 +1,12 @@
 <div align="center">
 
+<img src="server/static/openzeka-logo.png" alt="OpenZeka" height="48">
+
 # Speech Studio
 
 **Local transcription, speaker diarization, summaries and Q&A for audio recordings, running on an NVIDIA Jetson.**
+
+Speaker diarization powered by **[NVIDIA Nemotron-3-Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization)**
 
 English · [Türkçe](README.tr.md)
 
@@ -28,6 +32,56 @@ recording**. Everything runs on the device: the audio never leaves your Jetson.
 
 ![Transcript, summary and Q&A panels](docs/images/2-konusma-detay-en.webp)
 
+## Powered by NVIDIA Nemotron-3-Diarization
+
+The heart of Speech Studio is NVIDIA's speaker diarization model,
+[**Nemotron-3-Diarization**](https://huggingface.co/nvidia/Nemotron-3-Diarization).
+[Speaker diarization](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/speaker_diarization/intro.html)
+answers a different question from the speech models you may already know:
+
+| Model type | Input → output | Question it answers |
+|---|---|---|
+| Speech recognition (ASR) | audio → text | "What was said?" |
+| Text-to-speech (TTS) | text → audio | "How should this text sound?" |
+| **Speaker diarization** | audio → speaker timeline | **"Who spoke when?"** |
+
+ASR alone gives you one long block of text with no idea who said what.
+Diarization tells the *voices* apart, without knowing names or what the words
+mean, and turns that text into a conversation where every sentence belongs to
+someone.
+
+**How it works.** Classic diarization chains separate steps: detect speech,
+extract a voice fingerprint per segment, cluster the fingerprints. Errors pile
+up from step to step, and overlapping speech fits poorly. Nemotron-3-Diarization
+belongs to NVIDIA's **Sortformer** family and does it in one end-to-end pass:
+for every short time frame it outputs the probability that each of up to eight
+speakers is talking. Several speakers can be active at once, so interruptions
+and cross-talk are captured naturally. The colored lanes on Speech Studio's
+timeline are those eight outputs made visible.
+
+| | |
+|---|---|
+| Size | ~100M parameters: small enough to share an 8 GB Orin Nano with ASR and an LLM |
+| Architecture | 31-layer Transformer encoder (RoPE), Sortformer output head |
+| Speakers | up to 8, overlapping speech supported |
+| Modes | offline (whole file) and streaming, latency down to 0.32 s |
+| Training data | ~10,000 h of real conversations + 82,611 h of simulated multi-speaker mixtures, many languages |
+| License | OpenMDW 1.1 (commercial use permitted) |
+
+Diarization Error Rate (DER) published by NVIDIA, whole-file mode, lower is better:
+
+| Dataset | Content | DER |
+|---|---|---|
+| NOTSOFAR1 | meetings | 6.77% |
+| CALLHOME (Part 2) | phone calls | 9.10% |
+| DIHARD III | hard, mixed-domain audio | 12.73% (13.55% at 0.32 s streaming latency) |
+
+**In Speech Studio**, ASR writes every word with a timestamp and
+Nemotron-3-Diarization labels who was speaking at that moment. Both run on the
+Jetson GPU inside [NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp).
+Speech Studio merges the labelled words into speaker turns, and the timeline,
+transcript, summary and Q&A are all built on those turns.
+
 ## How it works
 
 ```
@@ -40,7 +94,7 @@ audio file ──► [NeMo-Speech.cpp container, GPU] ──► speakers + trans
 | Component | Role |
 |---|---|
 | [NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp) | NVIDIA's ggml-based local inference engine, built as a Docker image. Runs ASR and diarization on the Jetson GPU, one container per job. |
-| [Nemotron-3-Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization) | Who spoke when, up to 8 speakers, with word-level speaker labels. |
+| [Nemotron-3-Diarization](https://huggingface.co/nvidia/Nemotron-3-Diarization) | Who spoke when, up to 8 speakers, with word-level speaker labels ([details above](#powered-by-nvidia-nemotron-3-diarization)). |
 | ASR models | `nemotron-3.5` (default, multilingual), `parakeet-tdt`, `parakeet-ctc`, `nemotron-en`. |
 | [Ollama](https://ollama.com) | Summaries and Q&A with the model of your choice (default `qwen2.5:3b`). Speech Studio only talks to your existing container; it never stops it or removes models. |
 | Web console | Python/FastAPI + plain JS, bound to `127.0.0.1` only. Reach it from another machine through an SSH tunnel. |
